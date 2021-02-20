@@ -17,7 +17,7 @@ async def closest_clinic(user_location, clinics):
     async with aiohttp.ClientSession() as session:
         tasks = []
         for clinic in clinics:
-            resp = locator(session, user_location, clinics[clinic])
+            resp = locator(session, user_location, clinics[clinic]['location'])
             tasks.append(resp)
         responses = await asyncio.gather(*tasks, return_exceptions=True)
         router = dict(zip(clinics.keys(), responses))
