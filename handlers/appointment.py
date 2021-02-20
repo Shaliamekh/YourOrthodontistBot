@@ -1,64 +1,109 @@
+import re
+
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Text
+from aiogram.dispatcher.filters import Text, IsSenderContact
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from utils.db import get_clinics
+from utils.sender import appointment_sender
 
-import config
 
 class MakeAppointment(StatesGroup):
     waiting_for_clinic = State()
     waiting_for_date = State()
     waiting_for_time = State()
-#    waiting_for_phone = State()
-#    waiting_for_problem = State()
+    waiting_for_name = State()
+    waiting_for_phone = State()
+    waiting_for_problem = State()
 
+cmd_line = '\n\nЧтобы начать заново, введите команду /appointment.\nДля возврата к главному меню введите команду /menu.'
 
-async def make_appointment(message: types.Message):
+async def make_appointment(message: types.Message, state: FSMContext):
+    await state.finish()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for name in config.clinics.keys():
+    clinics = get_clinics()
+    for name in clinics.keys():
         keyboard.add(name)
-    await message.answer("Выберите подходящую вам клинику:", reply_markup=keyboard)
+    await message.answer("Выберите подходящую вам клинику ⬇" + cmd_line, reply_markup=keyboard)
     await MakeAppointment.waiting_for_clinic.set()
 
 
 async def clinic_chosen(message: types.Message, state: FSMContext):
-    if message.text not in config.clinics.keys():
-        await message.answer("Пожалуйста, выберите клинику, используя клавиатуру ниже")
+    clinics = get_clinics()
+    if message.text not in clinics.keys():
+        await message.answer("Пожалуйста, выберите клинику, используя клавиатуру ниже ⬇" + cmd_line)
         return
-    await state.update_data(chosen_clinic=message.text)
+    await state.update_data(clinic=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for date in config.clinics[message.text]['dates_available'].keys():
+    for date in clinics[message.text]['dates_available'].keys():
         keyboard.add(date)
-    await MakeAppointment.next()
-    await message.answer("Теперь выберите удобную дату:", reply_markup=keyboard)
+    await MakeAppointment.waiting_for_date.set()
+    await message.answer("Теперь выберите удобную дату  ⬇" + cmd_line, reply_markup=keyboard)
 
 
 async def date_chosen(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    if message.text not in config.clinics[user_data['chosen_clinic']]['dates_available'].keys():
-        await message.answer("Пожалуйста, выберите дату, используя клавиатуру ниже")
+    clinics = get_clinics()
+    if message.text not in clinics[user_data['clinic']]['dates_available'].keys():
+        await message.answer("Пожалуйста, выберите дату, используя клавиатуру ниже ⬇" + cmd_line)
         return
-    await state.update_data(chosen_date=message.text)
+    await state.update_data(date=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for time in config.clinics[user_data['chosen_clinic']]['dates_available'][message.text]:
+    for time in clinics[user_data['clinic']]['dates_available'][message.text]:
         keyboard.add(time)
-    await MakeAppointment.next()
-    await message.answer("Теперь выберите удобную дату:", reply_markup=keyboard)
+    await MakeAppointment.waiting_for_time.set()
+    await message.answer("Теперь выберите удобное время  ⬇" + cmd_line, reply_markup=keyboard)
 
 
 async def time_chosen(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    if message.text not in config.clinics[user_data['chosen_clinic']]['dates_available'][user_data['chosen_date']]:
-        await message.answer("Пожалуйста, выберите время, используя клавиатуру ниже.")
+    clinics = get_clinics()
+    if message.text not in clinics[user_data['clinic']]['dates_available'][user_data['date']]:
+        await message.answer("Пожалуйста, выберите время, используя клавиатуру ниже ⬇" + cmd_line)
         return
-    await state.update_data(chosen_time=message.text)
-    await message.answer(f"Вы записались в клинику {user_data['chosen_clinic']} на {user_data['chosen_date']}."
-                         f"Прием состоится в {message.text}")
+    await state.update_data(time=message.text)
+    await MakeAppointment.waiting_for_name.set()
+    await message.answer("Введите Ваше имя ⬇" + cmd_line, reply_markup=types.ReplyKeyboardRemove())
+
+
+async def name_shared(message: types.Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(types.KeyboardButton(text="Отправить номер телефона", request_contact=True))
+    await MakeAppointment.waiting_for_phone.set()
+    await message.answer("Оставьте телефон для связи с Вами. Введите его с клавиатуры в формате +7XXXXXXXXXX "
+                         "или отправьте с  помощью кнопки внизу ⬇" + cmd_line,
+                         reply_markup=keyboard)
+
+
+async def phone_shared(message: types.Message, state: FSMContext):
+    print(await state.get_state())
+    if not message.contact:
+        if not re.match(r'^\+[\d]{11}$', message.text):
+            await message.answer('Непохоже, что это номер телефона. Попробуйте еще раз.' + cmd_line)
+            return
+    await state.update_data(phone_number=message.text)
+    await MakeAppointment.waiting_for_problem.set()
+    await message.answer('Кратко опишите Вашу проблему  ⬇' + cmd_line, reply_markup=types.ReplyKeyboardRemove())
+
+
+async def problem_described(message: types.Message, state: FSMContext):
+    await state.update_data(problem=message.text)
+    user_data = await state.get_data()
     await state.finish()
+    result = await appointment_sender(user_data)
+    await message.answer(result)
+
+
 
 
 def register_handlers_appointment(dp: Dispatcher):
     dp.register_message_handler(make_appointment, Text(equals='Записаться на прием 📅'), state='*')
+    dp.register_message_handler(make_appointment, commands=['appointment'], state='*')
     dp.register_message_handler(clinic_chosen, state=MakeAppointment.waiting_for_clinic)
     dp.register_message_handler(date_chosen, state=MakeAppointment.waiting_for_date)
     dp.register_message_handler(time_chosen, state=MakeAppointment.waiting_for_time)
+    dp.register_message_handler(name_shared, state=MakeAppointment.waiting_for_name)
+    dp.register_message_handler(phone_shared, state=MakeAppointment.waiting_for_phone)
+    dp.register_message_handler(phone_shared, content_types=['contact'], state=MakeAppointment.waiting_for_phone)
+    dp.register_message_handler(problem_described, state=MakeAppointment.waiting_for_problem)
