@@ -1,9 +1,10 @@
 import re
+import shelve
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from app.utils.db import get_clinics
+from app.utils import db
 from app.utils.sender import appointment_sender
 
 
@@ -19,12 +20,18 @@ class MakeAppointment(StatesGroup):
 cmd_line = '\n\nЧтобы начать заново, введите команду /appointment.\nДля возврата к главному меню введите команду /menu.'
 
 
-# TODO:  мехаизм проверки, записался ли уже данный пользователь на прием. Удалить дату после записи
+# TODO:  мехаизм удаления даты после записи
 # TODO:  мехаизм удаления прошедших дат
 async def make_appointment(message: types.Message, state: FSMContext):
+    user_data = db.get_appointment_data(message.from_user.id)
+    if user_data:
+        await message.answer(f'Уважаемый(-ая) {user_data["name"]}, вы уже записаны на прием, который '
+                             f'состоится {user_data["date"]} в {user_data["time"]}' + cmd_line,
+                             reply_markup=types.ReplyKeyboardRemove())
+        return
     await state.finish()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    clinics = get_clinics()
+    clinics = db.get_clinics()
     for name in clinics.keys():
         keyboard.add(name)
     await message.answer("<b>Выберите подходящую вам клинику</b> ⬇" + cmd_line, reply_markup=keyboard)
@@ -32,7 +39,7 @@ async def make_appointment(message: types.Message, state: FSMContext):
 
 
 async def clinic_chosen(message: types.Message, state: FSMContext):
-    clinics = get_clinics()
+    clinics = db.get_clinics()
     if message.text not in clinics.keys():
         await message.answer("Пожалуйста, выберите клинику, используя клавиатуру ниже ⬇" + cmd_line)
         return
@@ -46,7 +53,7 @@ async def clinic_chosen(message: types.Message, state: FSMContext):
 
 async def date_chosen(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    clinics = get_clinics()
+    clinics = db.get_clinics()
     if message.text not in clinics[user_data['clinic']]['dates_available'].keys():
         await message.answer("Пожалуйста, выберите дату, используя клавиатуру ниже ⬇" + cmd_line)
         return
@@ -60,7 +67,7 @@ async def date_chosen(message: types.Message, state: FSMContext):
 
 async def time_chosen(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    clinics = get_clinics()
+    clinics = db.get_clinics()
     if message.text not in clinics[user_data['clinic']]['dates_available'][user_data['date']]:
         await message.answer("Пожалуйста, выберите время, используя клавиатуру ниже ⬇" + cmd_line)
         return
@@ -116,6 +123,7 @@ async def problem_described(message: types.Message, state: FSMContext):
                       "\nДля возврата к главному меню введите команду /menu."
 
     await message.answer(msg_to_user)
+    db.set_appointment_data(message.from_user.id, user_data)
 
 
 def register_handlers_appointment(dp: Dispatcher):

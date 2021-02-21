@@ -1,5 +1,6 @@
 import json
 from os import path
+import shelve
 
 
 def get_clinics():
@@ -40,5 +41,24 @@ def add_datetime(cliniс, date, time):
 # TODO: функции по удалению дат и времени
 
 
+def set_appointment_data(chat_id, user_data):
+    with shelve.open(path.dirname(__file__) + '/../users_appointment') as db:
+        db[str(chat_id)] = user_data
+        return
+
+
+def get_appointment_data(chat_id):
+    with shelve.open(path.dirname(__file__) + '/../users_appointment') as db:
+        return db.get(str(chat_id))
+
+
+def appointment_made(chat_id):
+    with shelve.open(path.dirname(__file__) + '/../users_appointment') as db:
+        if chat_id in db:
+            return True
+        else:
+            return None
+
+
 if __name__ == '__main__':
-    print(add_datetime('ДЕНТиК (ул. Тургенева, 23)', '05/08/2018', '10.50'))
+    print(get_appointment_data('2155455'))
