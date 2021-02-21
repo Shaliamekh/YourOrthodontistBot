@@ -1,30 +1,21 @@
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Text
 
-
-import config
-from utils.closest_clinic import closest_clinic
-from handlers.appointment import MakeAppointment
-from utils.db import get_clinics
+from app.utils.closest_clinic import closest_clinic
+from app.utils.db import get_clinics
+from app.markups import main_menu
 
 async def cmd_start(message: types.Message):
     msg = 'Вас приветствует телеграм-бот <b>ортодонта Екатерины Бахур</b>.\n\n' \
           'Здесь вы можете узнать мой график работы, адрес ближайшей к Вам клиники в г.Краснодаре, ' \
           'в которой я могу Вас принять, а также записаться на консультацию.\n\n' \
           'Используйте меню внизу ⬇'
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row(types.KeyboardButton(text='Ближайшая клиника 🗺', request_location=True))
-    keyboard.row('Записаться на прием 📅')
-    await message.answer(msg, reply_markup=keyboard)
+    await message.answer(msg, reply_markup=main_menu)
 
 
 async def cmd_cancel(message: types.Message, state: FSMContext):
     await state.finish()
-    keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row(types.KeyboardButton(text='Ближайшая клиника 🗺', request_location=True))
-    keyboard.row('Записаться на прием 📅')
-    await message.answer("Выберерите действие, используя меню внизу ⬇ ", reply_markup=keyboard)
+    await message.answer("Выберерите действие, используя меню внизу ⬇ ", reply_markup=main_menu)
 
 # async def cmd_previous(message: types.Message, state: FSMContext):
 #     a = await state.get_state()

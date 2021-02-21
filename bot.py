@@ -4,8 +4,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import BotCommand
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
-from handlers.general import register_handlers_general
-from handlers.appointment import register_handlers_appointment
+from app.handlers.general import register_handlers_general
+from app.handlers import register_handlers_appointment
 import config
 
 

@@ -1,11 +1,10 @@
 import re
-
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Text, IsSenderContact
+from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from utils.db import get_clinics
-from utils.sender import appointment_sender
+from app.utils.db import get_clinics
+from app.utils.sender import appointment_sender
 
 
 class MakeAppointment(StatesGroup):
@@ -16,8 +15,11 @@ class MakeAppointment(StatesGroup):
     waiting_for_phone = State()
     waiting_for_problem = State()
 
+
 cmd_line = '\n\nЧтобы начать заново, введите команду /appointment.\nДля возврата к главному меню введите команду /menu.'
 
+
+# TODO:  мехаизм проверки, записался ли уже данный пользователь на прием
 async def make_appointment(message: types.Message, state: FSMContext):
     await state.finish()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -82,7 +84,10 @@ async def phone_shared(message: types.Message, state: FSMContext):
         if not re.match(r'^\+[\d]{11}$', message.text):
             await message.answer('Непохоже, что это номер телефона. Попробуйте еще раз.' + cmd_line)
             return
-    await state.update_data(phone_number=message.text)
+        await state.update_data(phone_number=message.text)
+    else:
+        print(message.contact)
+        await state.update_data(phone_number='+' + message.contact.phone_number)
     await MakeAppointment.waiting_for_problem.set()
     await message.answer('Кратко опишите Вашу проблему  ⬇' + cmd_line, reply_markup=types.ReplyKeyboardRemove())
 
@@ -91,10 +96,23 @@ async def problem_described(message: types.Message, state: FSMContext):
     await state.update_data(problem=message.text)
     user_data = await state.get_data()
     await state.finish()
-    result = await appointment_sender(user_data)
-    await message.answer(result)
+    subject = "Запись на прием через Telegram-Bot"
+    msg_to_email = f"""
+{user_data['name']} записался на прием в клинику {user_data['clinic']}
+Дата: {user_data['date']}
+Время: {user_data['time']}
+Номер телефона: {user_data['phone_number']}
+Описание проблемы: {user_data['problem']}
+"""
+    if await appointment_sender(subject, msg_to_email):
+        msg_to_user = f'Уважаемый(-ая) {user_data["name"]}, Вы успешно записались на прием, ' \
+                      f'который состоится {user_data["date"]} в {user_data["time"]} в клинике {user_data["clinic"]}.' \
+                      f'\n\nДля возврата к главному меню введите команду /menu.'
+    else:
+        msg_to_user = "Что-то пошло не так. Попробуйте записаться на прием еще раз, введя команду /appointment." \
+                      "\nДля возврата к главному меню введите команду /menu."
 
-
+    await message.answer(msg_to_user)
 
 
 def register_handlers_appointment(dp: Dispatcher):
