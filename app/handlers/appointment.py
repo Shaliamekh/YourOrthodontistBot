@@ -19,14 +19,15 @@ class MakeAppointment(StatesGroup):
 cmd_line = '\n\nЧтобы начать заново, введите команду /appointment.\nДля возврата к главному меню введите команду /menu.'
 
 
-# TODO:  мехаизм проверки, записался ли уже данный пользователь на прием
+# TODO:  мехаизм проверки, записался ли уже данный пользователь на прием. Удалить дату после записи
+# TODO:  мехаизм удаления прошедших дат
 async def make_appointment(message: types.Message, state: FSMContext):
     await state.finish()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     clinics = get_clinics()
     for name in clinics.keys():
         keyboard.add(name)
-    await message.answer("Выберите подходящую вам клинику ⬇" + cmd_line, reply_markup=keyboard)
+    await message.answer("<b>Выберите подходящую вам клинику</b> ⬇" + cmd_line, reply_markup=keyboard)
     await MakeAppointment.waiting_for_clinic.set()
 
 
@@ -40,7 +41,7 @@ async def clinic_chosen(message: types.Message, state: FSMContext):
     for date in clinics[message.text]['dates_available'].keys():
         keyboard.add(date)
     await MakeAppointment.waiting_for_date.set()
-    await message.answer("Теперь выберите удобную дату  ⬇" + cmd_line, reply_markup=keyboard)
+    await message.answer("<b>Выберите подходящую для Вас дату</b>  ⬇" + cmd_line, reply_markup=keyboard)
 
 
 async def date_chosen(message: types.Message, state: FSMContext):
@@ -54,7 +55,7 @@ async def date_chosen(message: types.Message, state: FSMContext):
     for time in clinics[user_data['clinic']]['dates_available'][message.text]:
         keyboard.add(time)
     await MakeAppointment.waiting_for_time.set()
-    await message.answer("Теперь выберите удобное время  ⬇" + cmd_line, reply_markup=keyboard)
+    await message.answer("<b>Теперь выберите удобное время</b> ⬇" + cmd_line, reply_markup=keyboard)
 
 
 async def time_chosen(message: types.Message, state: FSMContext):
@@ -65,15 +66,15 @@ async def time_chosen(message: types.Message, state: FSMContext):
         return
     await state.update_data(time=message.text)
     await MakeAppointment.waiting_for_name.set()
-    await message.answer("Введите Ваше имя ⬇" + cmd_line, reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("<b>Введите Ваше имя</b> ⬇" + cmd_line, reply_markup=types.ReplyKeyboardRemove())
 
 
 async def name_shared(message: types.Message, state: FSMContext):
     await state.update_data(name=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.add(types.KeyboardButton(text="Отправить номер телефона", request_contact=True))
+    keyboard.add(types.KeyboardButton(text="Отправить номер телефона 📱", request_contact=True))
     await MakeAppointment.waiting_for_phone.set()
-    await message.answer("Оставьте телефон для связи с Вами. Введите его с клавиатуры в формате +7XXXXXXXXXX "
+    await message.answer("<b>Оставьте телефон для связи с Вами.</b> Введите его с клавиатуры в формате +7XXXXXXXXXX "
                          "или отправьте с  помощью кнопки внизу ⬇" + cmd_line,
                          reply_markup=keyboard)
 
@@ -89,7 +90,7 @@ async def phone_shared(message: types.Message, state: FSMContext):
         print(message.contact)
         await state.update_data(phone_number='+' + message.contact.phone_number)
     await MakeAppointment.waiting_for_problem.set()
-    await message.answer('Кратко опишите Вашу проблему  ⬇' + cmd_line, reply_markup=types.ReplyKeyboardRemove())
+    await message.answer('<b>Кратко опишите Вашу проблему</b> ⬇' + cmd_line, reply_markup=types.ReplyKeyboardRemove())
 
 
 async def problem_described(message: types.Message, state: FSMContext):
@@ -105,8 +106,10 @@ async def problem_described(message: types.Message, state: FSMContext):
 Описание проблемы: {user_data['problem']}
 """
     if await appointment_sender(subject, msg_to_email):
-        msg_to_user = f'Уважаемый(-ая) {user_data["name"]}, Вы успешно записались на прием, ' \
-                      f'который состоится {user_data["date"]} в {user_data["time"]} в клинике {user_data["clinic"]}.' \
+        msg_to_user = f'Уважаемый(-ая) {user_data["name"]}, благодарю Вас за интерес к моим услугам. \n\n' \
+                      f'✅ Вы успешно записались на прием, который состоится {user_data["date"]} ' \
+                      f'в {user_data["time"]} в клинике {user_data["clinic"]}. С Вами свяжутся в ближайшее ' \
+                      f'время по номеру телефона {user_data["phone_number"]}, чтобы подтвердить Вашу запись.' \
                       f'\n\nДля возврата к главному меню введите команду /menu.'
     else:
         msg_to_user = "Что-то пошло не так. Попробуйте записаться на прием еще раз, введя команду /appointment." \
