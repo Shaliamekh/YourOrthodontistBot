@@ -1,11 +1,11 @@
 import re
-import shelve
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from app.utils import db
 from app.utils.sender import appointment_sender
+from app.markups import main_menu
 
 
 class MakeAppointment(StatesGroup):
@@ -20,16 +20,16 @@ class MakeAppointment(StatesGroup):
 cmd_line = '\n\nЧтобы начать заново, введите команду /appointment.\nДля возврата к главному меню введите команду /menu.'
 
 
-# TODO:  мехаизм удаления даты после записи
 # TODO:  мехаизм удаления прошедших дат
+# TODO: клиники и даты, в которых нет доступных часов не должны появляться в меню
 async def make_appointment(message: types.Message, state: FSMContext):
+    await state.finish()
     user_data = db.get_appointment_data(message.from_user.id)
     if user_data:
         await message.answer(f'Уважаемый(-ая) {user_data["name"]}, вы уже записаны на прием, который '
                              f'состоится {user_data["date"]} в {user_data["time"]}' + cmd_line,
                              reply_markup=types.ReplyKeyboardRemove())
         return
-    await state.finish()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     clinics = db.get_clinics()
     for name in clinics.keys():
@@ -104,7 +104,7 @@ async def problem_described(message: types.Message, state: FSMContext):
     await state.update_data(problem=message.text)
     user_data = await state.get_data()
     await state.finish()
-    subject = "Запись на прием через Telegram-Bot"
+    subject = 'Запись на прием через Telegram-Bot'
     msg_to_email = f"""
 {user_data['name']} записался на прием в клинику {user_data['clinic']}
 Дата: {user_data['date']}
@@ -116,14 +116,13 @@ async def problem_described(message: types.Message, state: FSMContext):
         msg_to_user = f'Уважаемый(-ая) {user_data["name"]}, благодарю Вас за интерес к моим услугам. \n\n' \
                       f'✅ Вы успешно записались на прием, который состоится {user_data["date"]} ' \
                       f'в {user_data["time"]} в клинике {user_data["clinic"]}. С Вами свяжутся в ближайшее ' \
-                      f'время по номеру телефона {user_data["phone_number"]}, чтобы подтвердить Вашу запись.' \
-                      f'\n\nДля возврата к главному меню введите команду /menu.'
+                      f'время по номеру телефона {user_data["phone_number"]}, чтобы подтвердить Вашу запись.'
     else:
-        msg_to_user = "Что-то пошло не так. Попробуйте записаться на прием еще раз, введя команду /appointment." \
-                      "\nДля возврата к главному меню введите команду /menu."
+        msg_to_user = 'Что-то пошло не так. Попробуйте записаться на прием еще раз, введя команду /appointment.'
 
-    await message.answer(msg_to_user)
+    await message.answer(msg_to_user, reply_markup=main_menu)
     db.set_appointment_data(message.from_user.id, user_data)
+    db.delete_time(user_data['clinic'], user_data['date'], user_data['time'])
 
 
 def register_handlers_appointment(dp: Dispatcher):
