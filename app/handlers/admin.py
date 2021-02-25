@@ -229,38 +229,38 @@ async def time_delete_time(message: types.Message, state: FSMContext):
     await state.finish()
 
 
-def register_handlers_admin(dp: Dispatcher):
-    dp.register_message_handler(cmd_admin, IDFilter(user_id='1157354030'), commands=['admin'], state='*')
-    dp.register_message_handler(schedule, IDFilter(user_id='1157354030'),
+def register_handlers_admin(dp: Dispatcher, user_id):
+    dp.register_message_handler(cmd_admin, IDFilter(user_id=user_id), commands=['admin'], state='*')
+    dp.register_message_handler(schedule, IDFilter(user_id=user_id),
                                 Text(equals='Все доступные дата/время для записи'))
 
     # Добавление клиника
-    dp.register_message_handler(add_clinic, IDFilter(user_id='1157354030'), Text(equals='Добавить клинику'))
-    dp.register_message_handler(name_add_clinic, IDFilter(user_id='1157354030'), state=AddClinic.waiting_for_name)
-    dp.register_message_handler(location_add_clinic, IDFilter(user_id='1157354030'),
+    dp.register_message_handler(add_clinic, IDFilter(user_id=user_id), Text(equals='Добавить клинику'))
+    dp.register_message_handler(name_add_clinic, IDFilter(user_id=user_id), state=AddClinic.waiting_for_name)
+    dp.register_message_handler(location_add_clinic, IDFilter(user_id=user_id),
                                 content_types=types.ContentType.LOCATION, state=AddClinic.waiting_for_location)
 
     # Удаление клиники
-    dp.register_message_handler(delete_clinic, IDFilter(user_id='1157354030'), Text(equals='Удалить клинику'))
-    dp.register_message_handler(name_delete_clinic, IDFilter(user_id='1157354030'),
+    dp.register_message_handler(delete_clinic, IDFilter(user_id=user_id), Text(equals='Удалить клинику'))
+    dp.register_message_handler(name_delete_clinic, IDFilter(user_id=user_id),
                                 state=DeleteClinic.waiting_for_name)
 
     # Добавление даты/времени
-    dp.register_message_handler(add_datetime, IDFilter(user_id='1157354030'), Text(equals='Добавить дату/время'))
-    dp.register_message_handler(name_add_datetime, IDFilter(user_id='1157354030'),
+    dp.register_message_handler(add_datetime, IDFilter(user_id=user_id), Text(equals='Добавить дату/время'))
+    dp.register_message_handler(name_add_datetime, IDFilter(user_id=user_id),
                                 state=AddDateTime.waiting_for_name)
-    dp.register_message_handler(date_add_datetime, IDFilter(user_id='1157354030'),
+    dp.register_message_handler(date_add_datetime, IDFilter(user_id=user_id),
                                 state=AddDateTime.waiting_for_date)
-    dp.register_message_handler(time_add_datetime, IDFilter(user_id='1157354030'),
+    dp.register_message_handler(time_add_datetime, IDFilter(user_id=user_id),
                                 state=AddDateTime.waiting_for_time)
 
     # Удаление даты
-    dp.register_message_handler(delete_date, IDFilter(user_id='1157354030'), Text(equals='Удалить дату'))
-    dp.register_message_handler(name_delete_date, IDFilter(user_id='1157354030'), state=DeleteDate.waiting_for_name)
-    dp.register_message_handler(date_delete_date, IDFilter(user_id='1157354030'), state=DeleteDate.waiting_for_date)
+    dp.register_message_handler(delete_date, IDFilter(user_id=user_id), Text(equals='Удалить дату'))
+    dp.register_message_handler(name_delete_date, IDFilter(user_id=user_id), state=DeleteDate.waiting_for_name)
+    dp.register_message_handler(date_delete_date, IDFilter(user_id=user_id), state=DeleteDate.waiting_for_date)
 
     # Удаление времени
-    dp.register_message_handler(delete_time, IDFilter(user_id='1157354030'), Text(equals='Удалить время'))
-    dp.register_message_handler(name_delete_time, IDFilter(user_id='1157354030'), state=DeleteTime.waiting_for_name)
-    dp.register_message_handler(date_delete_time, IDFilter(user_id='1157354030'), state=DeleteTime.waiting_for_date)
-    dp.register_message_handler(time_delete_time, IDFilter(user_id='1157354030'), state=DeleteTime.waiting_for_time)
+    dp.register_message_handler(delete_time, IDFilter(user_id=user_id), Text(equals='Удалить время'))
+    dp.register_message_handler(name_delete_time, IDFilter(user_id=user_id), state=DeleteTime.waiting_for_name)
+    dp.register_message_handler(date_delete_time, IDFilter(user_id=user_id), state=DeleteTime.waiting_for_date)
+    dp.register_message_handler(time_delete_time, IDFilter(user_id=user_id), state=DeleteTime.waiting_for_time)

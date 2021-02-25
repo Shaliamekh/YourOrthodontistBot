@@ -5,6 +5,7 @@ main_menu.row('О враче 👩‍⚕', 'До и после 😁')
 main_menu.row(types.KeyboardButton(text='Ближайшая клиника 🗺', request_location=True))
 main_menu.row('Все клиники 🏥')
 main_menu.row('Записаться на прием 📅')
+main_menu.row('И еще кое-что 💌')
 # main_menu.row()
 
 admin_menu = types.ReplyKeyboardMarkup(resize_keyboard=True)

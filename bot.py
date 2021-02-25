@@ -29,7 +29,7 @@ async def main():
     dp = Dispatcher(bot, storage=storage)
 
     register_handlers_general(dp)
-    register_handlers_admin(dp)
+    register_handlers_admin(dp, config.user_id)
     register_handlers_appointment(dp)
     register_handlers_clinics(dp)
 
@@ -41,8 +41,5 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 
-
-# TODO: подготовить локации оригинальных клиник
-# TODO: подготовить хэндлеры для Катиного ID
-# TODO: настроить отпраку записей на Катину почту
+# TODO: имейл, айди
 # TODO: наладить HTML верстку в отправляемом сообщении
