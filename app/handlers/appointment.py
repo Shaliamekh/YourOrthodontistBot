@@ -24,10 +24,14 @@ cmd_line = '\n\nЧтобы начать заново, введите коман�
 async def make_appointment(message: types.Message, state: FSMContext):
     await state.finish()
     user_data = db.get_appointment_data(message.from_user.id)
+    cancel_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    cancel_keyboard.add('Отменить запись 🚫')
     if user_data:
         await message.answer(f'Уважаемый(-ая) {user_data["name"]}, вы уже записаны на прием, который '
-                             f'состоится {user_data["date"]} в {user_data["time"]}' + cmd_line,
-                             reply_markup=types.ReplyKeyboardRemove())
+                             f'состоится {user_data["date"]} в {user_data["time"]}.'
+                             f'\n\nДля отмены нажмите "Отменить запись 🚫" внизу ⬇'
+                             f'\nДля возврата к главному меню введите команду /menu.',
+                             reply_markup=cancel_keyboard)
         return
     db.delete_expired_dates()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -109,9 +113,9 @@ async def problem_described(message: types.Message, state: FSMContext):
     await state.update_data(problem=message.text)
     user_data = await state.get_data()
     await state.finish()
-    subject = 'Запись на прием через Telegram-Bot'
+    subject = '✅ Запись на прием через Telegram-Bot'
     msg_to_email = f"""
-{user_data['name']} записался на прием в клинику {user_data['clinic']}
+Пользователь {user_data['name']} записался на прием в клинику {user_data['clinic']}
 Дата: {user_data['date']}
 Время: {user_data['time']}
 Номер телефона: {user_data['phone_number']}
@@ -130,6 +134,26 @@ async def problem_described(message: types.Message, state: FSMContext):
     db.delete_time(user_data['clinic'], user_data['date'], user_data['time'])
 
 
+async def cancel_appointment(message: types.Message):
+    user_data = db.get_appointment_data(message.from_user.id)
+    subject = '🚫 Отмена записи на прием через Telegram-Bot'
+    msg_to_email = f"""
+Пользователь {user_data['name']} отменил запись на прием в клинику {user_data['clinic']}
+Дата: {user_data['date']}
+Время: {user_data['time']}
+Номер телефона: {user_data['phone_number']}
+Описание проблемы: {user_data['problem']}
+    """
+    if await appointment_sender(subject, msg_to_email):
+        msg_to_user = f'Уважаемый(-ая) {user_data["name"]}, Ваша запись успешно отменена.'
+    else:
+        msg_to_user = 'Что-то пошло не так. Попробуйте записаться на прием еще раз, введя команду /appointment.'
+    await message.answer(msg_to_user, reply_markup=main_menu)
+    db.add_datetime(user_data['clinic'], user_data['date'], user_data['time'])
+    db.delete_appointment(message.from_user.id)
+
+
+
 def register_handlers_appointment(dp: Dispatcher):
     dp.register_message_handler(make_appointment, Text(equals='Записаться на прием 📅'), state='*')
     dp.register_message_handler(make_appointment, commands=['appointment'], state='*')
@@ -140,3 +164,4 @@ def register_handlers_appointment(dp: Dispatcher):
     dp.register_message_handler(phone_shared, state=MakeAppointment.waiting_for_phone)
     dp.register_message_handler(phone_shared, content_types=['contact'], state=MakeAppointment.waiting_for_phone)
     dp.register_message_handler(problem_described, state=MakeAppointment.waiting_for_problem)
+    dp.register_message_handler(cancel_appointment, Text(equals='Отменить запись 🚫'))

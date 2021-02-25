@@ -68,12 +68,16 @@ def get_schedule():
 def set_appointment_data(chat_id, user_data):
     with shelve.open(path.dirname(__file__) + '/../users_appointment') as db:
         db[str(chat_id)] = user_data
-        return
 
 
 def get_appointment_data(chat_id):
     with shelve.open(path.dirname(__file__) + '/../users_appointment') as db:
         return db.get(str(chat_id))
+
+
+def delete_appointment(chat_id):
+    with shelve.open(path.dirname(__file__) + '/../users_appointment') as db:
+        del db[str(chat_id)]
 
 
 def appointment_made(chat_id):
@@ -107,4 +111,4 @@ def delete_expired_dates():
                 delete_date(clinic, date)
 
 if __name__ == '__main__':
-    visitors_list('Roman', '2556545')
+    delete_appointment(1157354030)
