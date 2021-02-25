@@ -1,9 +1,8 @@
 import json
 from os import path
 import shelve
+from datetime import datetime
 
-
-# TODO: переделать все функции под try
 
 def get_clinics():
     with open(path.dirname(__file__) + '/../clinics_db.json', 'r') as db:
@@ -85,5 +84,27 @@ def appointment_made(chat_id):
             return None
 
 
+# проверяем, есть ли доступное время в клинике
+def check_availability(clinic):
+    clinics = get_clinics()
+    dates = [i for i in clinics[clinic]['dates_available']]
+    times = [clinics[clinic]['dates_available'][date] for date in dates]
+    res = [len(i) != 0 for i in times]
+    return any(res)
+
+
+def visitors_list(fname, lname, id):
+    with open(path.dirname(__file__) + '/../visitors_list.txt', 'a') as file:
+        file.write(f'{datetime.now()} - {fname} {lname} - {id}\n')
+
+
+# Удаляем все прошедшие даты
+def delete_expired_dates():
+    clinics = get_clinics()
+    for clinic in clinics:
+        for date in clinics[clinic]['dates_available']:
+            if datetime.strptime(date, '%d/%m/%Y').date() < datetime.now().date():
+                delete_date(clinic, date)
+
 if __name__ == '__main__':
-    delete_time("ДЕНТиК (ул. Тургенева, 23)", "20/10/2021", "10.30")
+    visitors_list('Roman', '2556545')

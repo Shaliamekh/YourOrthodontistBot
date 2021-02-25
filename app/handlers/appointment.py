@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
@@ -20,8 +21,6 @@ class MakeAppointment(StatesGroup):
 cmd_line = '\n\nЧтобы начать заново, введите команду /appointment.\nДля возврата к главному меню введите команду /menu.'
 
 
-# TODO:  мехаизм удаления прошедших дат
-# TODO: клиники и даты, в которых нет доступных часов не должны появляться в меню
 async def make_appointment(message: types.Message, state: FSMContext):
     await state.finish()
     user_data = db.get_appointment_data(message.from_user.id)
@@ -30,10 +29,12 @@ async def make_appointment(message: types.Message, state: FSMContext):
                              f'состоится {user_data["date"]} в {user_data["time"]}' + cmd_line,
                              reply_markup=types.ReplyKeyboardRemove())
         return
+    db.delete_expired_dates()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     clinics = db.get_clinics()
     for name in clinics.keys():
-        keyboard.add(name)
+        if db.check_availability(name):
+            keyboard.add(name)
     await message.answer("<b>Выберите подходящую вам клинику</b> ⬇" + cmd_line, reply_markup=keyboard)
     await MakeAppointment.waiting_for_clinic.set()
 
@@ -45,8 +46,10 @@ async def clinic_chosen(message: types.Message, state: FSMContext):
         return
     await state.update_data(clinic=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for date in clinics[message.text]['dates_available'].keys():
-        keyboard.add(date)
+    dates = list(clinics[message.text]['dates_available'].keys())
+    dates.sort(key=lambda dt: datetime.strptime(dt, '%d/%m/%Y'))
+    for d in dates:
+        keyboard.add(d)
     await MakeAppointment.waiting_for_date.set()
     await message.answer("<b>Выберите подходящую для Вас дату</b>  ⬇" + cmd_line, reply_markup=keyboard)
 
@@ -59,8 +62,10 @@ async def date_chosen(message: types.Message, state: FSMContext):
         return
     await state.update_data(date=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for time in clinics[user_data['clinic']]['dates_available'][message.text]:
-        keyboard.add(time)
+    times = clinics[user_data['clinic']]['dates_available'][message.text]
+    times.sort(key=lambda tm: datetime.strptime(tm, '%H.%M'))
+    for t in times:
+        keyboard.add(t)
     await MakeAppointment.waiting_for_time.set()
     await message.answer("<b>Теперь выберите удобное время</b> ⬇" + cmd_line, reply_markup=keyboard)
 

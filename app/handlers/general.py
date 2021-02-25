@@ -3,7 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from os import path
 from app.utils.closest_clinic import closest_clinic
-from app.utils.db import get_clinics
+from app.utils.db import get_clinics, visitors_list
 from app.markups import main_menu
 
 
@@ -11,12 +11,11 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await state.finish()
     msg = 'Вас приветствует телеграм-бот <b>стоматолога-ортодонта Екатерины Бахур</b>.\n\n' \
           'Этот бот поможет Вам:\n' \
-          '🦷 получить информацию о моем опыте работы ортодонтом и оценить результаты\n'\
+          '🦷 получить информацию о моем опыте работы ортодонтом и оценить результаты лечения\n' \
           '🦷 узнать адрес ближайшей к Вам клиники в г. Краснодаре\n' \
-          '🦷 записаться на прием\n\n' \
-          'Используйте меню внизу ⬇'
-    await message.answer(msg, reply_markup=main_menu)
-
+          '🦷 записаться на прием\n\n'
+    await message.answer('Используйте меню внизу ⬇', reply_markup=main_menu)
+    visitors_list(message.from_user.first_name ,message.from_user.last_name, message.from_user.id)
 
 
 async def cmd_menu(message: types.Message, state: FSMContext):
@@ -69,7 +68,7 @@ async def work_results(message: types.Message):
     media.attach_photo(types.InputFile(path.dirname(__file__) + '/../media/1.jpeg'), 'Мы такие классные!')
     media.attach_photo(types.InputFile(path.dirname(__file__) + '/../media/2.jpeg'), 'Еще немного нас!')
     media.attach_photo(types.InputFile(path.dirname(__file__) + '/../media/3.jpeg'), 'Мы опять!')
-    await message.answer('Здесь Вы можете увидеть результаты моей работы 🦷\n\n'
+    await message.answer('Здесь Вы можете увидеть несколько фото моих пациентов до и после курса лечения 🦷\n\n'
                          'Под каждым фото - комментарий о ходе лечения')
     await message.answer_media_group(media=media)
 

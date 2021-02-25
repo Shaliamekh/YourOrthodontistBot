@@ -29,9 +29,10 @@ async def main():
     dp = Dispatcher(bot, storage=storage)
 
     register_handlers_general(dp)
+    register_handlers_admin(dp)
     register_handlers_appointment(dp)
     register_handlers_clinics(dp)
-    register_handlers_admin(dp)
+
 
     await set_commands(bot)
     await dp.start_polling()
@@ -39,3 +40,9 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+# TODO: подготовить локации оригинальных клиник
+# TODO: подготовить хэндлеры для Катиного ID
+# TODO: настроить отпраку записей на Катину почту
+# TODO: наладить HTML верстку в отправляемом сообщении

@@ -1,3 +1,4 @@
+from datetime import datetime
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -13,6 +14,7 @@ both_cmd = '\n\nДля возврата к главному меню введи 
 
 async def cmd_admin(message: types.Message, state: FSMContext):
     await state.finish()
+    db.delete_expired_dates()
     await message.answer('Привет, милая. Выбери действие в меню ⬇' + menu_cmd, reply_markup=admin_menu)
 
 
@@ -95,8 +97,10 @@ async def name_add_datetime(message: types.Message, state: FSMContext):
     await state.update_data(clinic=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     clinics = db.get_clinics()
-    for date in clinics[message.text]['dates_available'].keys():
-        keyboard.add(date)
+    dates = list(clinics[message.text]['dates_available'].keys())
+    dates.sort(key=lambda dt: datetime.strptime(dt, '%d/%m/%Y'))
+    for d in dates:
+        keyboard.add(d)
     await message.answer('Выбери дату в меню ⬇ или введи новую дату в формате ДД/ММ/ГГГГ' + both_cmd,
                          reply_markup=keyboard)
     await AddDateTime.waiting_for_date.set()
@@ -104,7 +108,8 @@ async def name_add_datetime(message: types.Message, state: FSMContext):
 
 async def date_add_datetime(message: types.Message, state: FSMContext):
     await state.update_data(date=message.text)
-    await message.answer(f'Введи время записи для даты {message.text} в формате ЧЧ.ММ' + both_cmd)
+    await message.answer(f'Введи время записи для даты {message.text} в формате ЧЧ.ММ' + both_cmd,
+                         reply_markup=types.ReplyKeyboardRemove())
     await AddDateTime.waiting_for_time.set()
 
 
@@ -140,8 +145,10 @@ async def name_delete_date(message: types.Message, state: FSMContext):
     await state.update_data(clinic=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     clinics = db.get_clinics()
-    for date in clinics[message.text]['dates_available'].keys():
-        keyboard.add(date)
+    dates = list(clinics[message.text]['dates_available'].keys())
+    dates.sort(key=lambda dt: datetime.strptime(dt, '%d/%m/%Y'))
+    for d in dates:
+        keyboard.add(d)
     await message.answer(f'Выбери дату, которую нужно удалить для клиники {message.text}, в меню ⬇' + both_cmd,
                          reply_markup=keyboard)
     await DeleteDate.waiting_for_date.set()
@@ -184,8 +191,10 @@ async def name_delete_time(message: types.Message, state: FSMContext):
     await state.update_data(clinic=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     clinics = db.get_clinics()
-    for date in clinics[message.text]['dates_available'].keys():
-        keyboard.add(date)
+    dates = list(clinics[message.text]['dates_available'].keys())
+    dates.sort(key=lambda dt: datetime.strptime(dt, '%d/%m/%Y'))
+    for d in dates:
+        keyboard.add(d)
     await message.answer(f'Выбери дату, время для которой нужно удалить для клиники {message.text}, в меню ⬇'
                          + both_cmd, reply_markup=keyboard)
     await DeleteTime.waiting_for_date.set()
@@ -199,8 +208,10 @@ async def date_delete_time(message: types.Message, state: FSMContext):
         return
     await state.update_data(date=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for time in clinics[user_data['clinic']]['dates_available'][message.text]:
-        keyboard.add(time)
+    times = clinics[user_data['clinic']]['dates_available'][message.text]
+    times.sort(key=lambda tm: datetime.strptime(tm, '%H.%M'))
+    for t in times:
+        keyboard.add(t)
     await message.answer(f'Выбери время, которое нужно удалить для даты {message.text} в клинике '
                          f'{user_data["clinic"]}, в меню ⬇' + both_cmd, reply_markup=keyboard)
     await DeleteTime.waiting_for_time.set()
