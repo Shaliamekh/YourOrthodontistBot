@@ -137,8 +137,7 @@ async def problem_described(message: types.Message, state: FSMContext):
 async def cancel_appointment(message: types.Message):
     user_data = db.get_appointment_data(message.from_user.id)
     subject = '🚫 Отмена записи на прием через Telegram-Bot'
-    msg_to_email = f"""
-Пользователь {user_data['name']} отменил запись на прием в клинику {user_data['clinic']}
+    msg_to_email = f"""Пользователь {user_data['name']} отменил запись на прием в клинику {user_data['clinic']}
 Дата: {user_data['date']}
 Время: {user_data['time']}
 Номер телефона: {user_data['phone_number']}

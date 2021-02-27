@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
@@ -107,6 +108,9 @@ async def name_add_datetime(message: types.Message, state: FSMContext):
 
 
 async def date_add_datetime(message: types.Message, state: FSMContext):
+    if not re.match(r'^[\d]{2}\/[\d]{2}\/[\d]{4}$', message.text):
+        await message.answer('Катюш, скорее всего, ты ввела дату в неправильном формате. Попробуй еще раз: ДД/ММ/ГГГГ')
+        return
     await state.update_data(date=message.text)
     await message.answer(f'Введи время записи для даты {message.text} в формате ЧЧ.ММ' + both_cmd,
                          reply_markup=types.ReplyKeyboardRemove())
@@ -114,6 +118,9 @@ async def date_add_datetime(message: types.Message, state: FSMContext):
 
 
 async def time_add_datetime(message: types.Message, state: FSMContext):
+    if not re.match(r'^[\d]{2}\.[\d]{2}$', message.text):
+        await message.answer('Катюш, скорее всего, ты ввела время в неправильном формате. Попробуй еще раз: ЧЧ.ММ')
+        return
     user_data = await state.get_data()
     db.add_datetime(user_data['clinic'], user_data['date'], message.text)
     await message.answer(f'Все хорошо, милая. Время для записи {message.text} на {user_data["date"]} '

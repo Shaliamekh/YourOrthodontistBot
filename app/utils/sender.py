@@ -7,7 +7,7 @@ async def appointment_sender(subject, msg_to_email):
     try:
         message = EmailMessage()
         message["From"] = "orthodental@tut.by"
-        message["To"] = ["shelemekh@tut.by", "romashelemeh@gmail.com"]
+        message["To"] = config.emails
         message["Subject"] = subject
         msg = msg_to_email
         message.set_content(msg)

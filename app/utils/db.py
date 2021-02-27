@@ -65,6 +65,7 @@ def get_schedule():
     return schedule
 
 
+# Работа с пользователями, которые записались на прием
 def set_appointment_data(chat_id, user_data):
     with shelve.open(path.dirname(__file__) + '/../users_appointment') as db:
         db[str(chat_id)] = user_data
@@ -88,7 +89,7 @@ def appointment_made(chat_id):
             return None
 
 
-# проверяем, есть ли доступное время в клинике
+# Проверяем, есть ли доступное время для записи в клинике
 def check_availability(clinic):
     clinics = get_clinics()
     dates = [i for i in clinics[clinic]['dates_available']]
@@ -97,9 +98,10 @@ def check_availability(clinic):
     return any(res)
 
 
-def visitors_list(fname, lname, id):
+# Фиксирование пользователей, которые воспользовались ботом
+def visitors_list(fname, lname, user_id):
     with open(path.dirname(__file__) + '/../visitors_list.txt', 'a') as file:
-        file.write(f'{datetime.now()} - {fname} {lname} - {id}\n')
+        file.write(f'{datetime.now()} - {fname} {lname} - User ID: {user_id}\n')
 
 
 # Удаляем все прошедшие даты

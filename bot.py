@@ -1,5 +1,4 @@
 import asyncio
-
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import BotCommand
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
@@ -17,7 +16,6 @@ async def set_commands(bot: Bot):
         BotCommand(command="/menu", description="Вернуться к главному меню"),
         BotCommand(command="/appointment", description="Записаться на прием"),
         BotCommand(command="/admin", description="Меню администратора")
-        # BotCommand(command="/previous", description="Вернуться к предыдущему шагу"),
     ]
     await bot.set_my_commands(commands)
 
@@ -33,13 +31,9 @@ async def main():
     register_handlers_appointment(dp)
     register_handlers_clinics(dp)
 
-
     await set_commands(bot)
     await dp.start_polling()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-# TODO: имейл, айди
-# TODO: наладить HTML верстку в отправляемом сообщении
