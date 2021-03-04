@@ -33,6 +33,18 @@ async def get_clinics_with_appointments_available():
         return None
 
 
+async def get_all_clinics():
+    try:
+        async with DBHelper() as conn:
+            rows = await conn.fetch('SELECT name FROM orthodontist.clinic ORDER BY name')
+        clinics = []
+        for row in rows:
+            clinics.append(row['name'])
+        return clinics
+    except Exception:
+        return None
+
+
 async def add_clinic(name, latitude, longitude):
     try:
         async with DBHelper() as conn:
@@ -213,8 +225,9 @@ if __name__ == '__main__':
     pass
 
     # print(asyncio.run(get_clinics_with_appointments_available()))
+    print(asyncio.run(get_all_clinics()))
     # print(asyncio.run(add_clinic('У Ромы', 24.5645665, 54.656262)))
-    # print(asyncio.run(delete_clinic('У Ромы')))
+    print(asyncio.run(delete_clinic('У Ромы')))
     # print(asyncio.run(add_appointment_available('Имплант (ул. 40 лет победы, 178/1)', '15/03/2021', '11:00')))
     # print(asyncio.run(get_dates_available_by_clinic('Имплант (ул. 40 лет победы, 178/1)')))
     # print(asyncio.run(get_time_available_by_clinic_date('Имплант (ул. 40 лет победы, 178/1)', '16/03/2021')))
@@ -225,5 +238,5 @@ if __name__ == '__main__':
     # # print(asyncio.run(make_appointment('27/04/2021', '10:00', 123458, 'Ольга', '++75213648925', 'Болииит')))
     # print(asyncio.run(make_appointment('13/03/2021', '10:30', 12545862,
     #                                    'Пимен Панчанка', '+72596246', 'Болит зубик')))
-    print(asyncio.run(get_appointment_data(123456)))
+    # print(asyncio.run(get_appointment_data(123456)))
     # print(asyncio.run(delete_appointment(123459)))
