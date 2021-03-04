@@ -1,10 +1,9 @@
 import re
-from datetime import datetime
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
-from app.utils import db
+from app.db import pg
 from app.utils.sender import appointment_sender
 from app.markups import main_menu
 
@@ -23,35 +22,32 @@ cmd_line = '\n\nЧтобы начать заново, введите коман�
 
 async def make_appointment(message: types.Message, state: FSMContext):
     await state.finish()
-    user_data = db.get_appointment_data(message.from_user.id)
+    user_data = await pg.get_appointment_data(message.from_user.id)
     cancel_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     cancel_keyboard.add('Отменить запись 🚫')
     if user_data:
         await message.answer(f'Уважаемый(-ая) {user_data["name"]}, вы уже записаны на прием, который '
-                             f'состоится {user_data["date"]} в {user_data["time"]}.'
+                             f'состоится {user_data["date"]} в {user_data["time"]} в клинике {user_data["clinic"]}.'
                              f'\n\nДля отмены нажмите "Отменить запись 🚫" внизу ⬇'
                              f'\nДля возврата к главному меню введите команду /menu.',
                              reply_markup=cancel_keyboard)
         return
-    db.delete_expired_dates()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    clinics = db.get_clinics()
-    for name in clinics.keys():
-        if db.check_availability(name):
-            keyboard.add(name)
+    clinics = await pg.get_clinics_with_appointments_available()
+    for name in clinics:
+        keyboard.add(name)
     await message.answer("<b>Выберите подходящую вам клинику</b> ⬇" + cmd_line, reply_markup=keyboard)
     await MakeAppointment.waiting_for_clinic.set()
 
 
 async def clinic_chosen(message: types.Message, state: FSMContext):
-    clinics = db.get_clinics()
+    clinics = await pg.get_clinics_with_appointments_available()
     if message.text not in clinics.keys():
         await message.answer("Пожалуйста, выберите клинику, используя клавиатуру ниже ⬇" + cmd_line)
         return
     await state.update_data(clinic=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    dates = list(clinics[message.text]['dates_available'].keys())
-    dates.sort(key=lambda dt: datetime.strptime(dt, '%d/%m/%Y'))
+    dates = await pg.get_dates_available_by_clinic(message.text)
     for d in dates:
         keyboard.add(d)
     await MakeAppointment.waiting_for_date.set()
@@ -60,24 +56,23 @@ async def clinic_chosen(message: types.Message, state: FSMContext):
 
 async def date_chosen(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    clinics = db.get_clinics()
-    if message.text not in clinics[user_data['clinic']]['dates_available'].keys():
+    dates = await pg.get_dates_available_by_clinic(user_data['clinic'])
+    if message.text not in dates:
         await message.answer("Пожалуйста, выберите дату, используя клавиатуру ниже ⬇" + cmd_line)
         return
     await state.update_data(date=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    times = clinics[user_data['clinic']]['dates_available'][message.text]
-    times.sort(key=lambda tm: datetime.strptime(tm, '%H.%M'))
-    for t in times:
-        keyboard.add(t)
+    timetable = await pg.get_time_available_by_clinic_date(user_data['clinic'], message.text)
+    for time in timetable:
+        keyboard.add(time)
     await MakeAppointment.waiting_for_time.set()
     await message.answer("<b>Теперь выберите удобное время</b> ⬇" + cmd_line, reply_markup=keyboard)
 
 
 async def time_chosen(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    clinics = db.get_clinics()
-    if message.text not in clinics[user_data['clinic']]['dates_available'][user_data['date']]:
+    timetable = await pg.get_time_available_by_clinic_date(user_data['clinic'], message.text)
+    if message.text not in timetable:
         await message.answer("Пожалуйста, выберите время, используя клавиатуру ниже ⬇" + cmd_line)
         return
     await state.update_data(time=message.text)
@@ -86,6 +81,7 @@ async def time_chosen(message: types.Message, state: FSMContext):
 
 
 async def name_shared(message: types.Message, state: FSMContext):
+    # TODO: проверка имени на None
     await state.update_data(name=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(types.KeyboardButton(text="Отправить номер телефона 📱", request_contact=True))
@@ -96,30 +92,30 @@ async def name_shared(message: types.Message, state: FSMContext):
 
 
 async def phone_shared(message: types.Message, state: FSMContext):
-    print(await state.get_state())
     if not message.contact:
         if not re.match(r'^\+[\d]{11}$', message.text):
             await message.answer('Непохоже, что это номер телефона. Попробуйте еще раз.' + cmd_line)
             return
         await state.update_data(phone_number=message.text)
     else:
-        print(message.contact)
         await state.update_data(phone_number='+' + message.contact.phone_number)
     await MakeAppointment.waiting_for_problem.set()
     await message.answer('<b>Кратко опишите Вашу проблему</b> ⬇' + cmd_line, reply_markup=types.ReplyKeyboardRemove())
 
 
 async def problem_described(message: types.Message, state: FSMContext):
-    await state.update_data(problem=message.text)
+    # TODO: проверка проблемы на None
     user_data = await state.get_data()
     await state.finish()
+    await pg.make_appointment(user_data['date'], user_data['time'], message.from_user.id, user_data['name'],
+                              user_data['phone_number'], message.text)
     subject = '✅ Запись на прием через Telegram-Bot'
     msg_to_email = f"""
 Пользователь {user_data['name']} записался на прием в клинику {user_data['clinic']}
 Дата: {user_data['date']}
 Время: {user_data['time']}
 Номер телефона: {user_data['phone_number']}
-Описание проблемы: {user_data['problem']}
+Описание проблемы: {message.text}
 """
     if await appointment_sender(subject, msg_to_email):
         msg_to_user = f'Уважаемый(-ая) {user_data["name"]}, благодарю Вас за интерес к моим услугам. \n\n' \
@@ -130,12 +126,10 @@ async def problem_described(message: types.Message, state: FSMContext):
         msg_to_user = 'Что-то пошло не так. Попробуйте записаться на прием еще раз, введя команду /appointment.'
 
     await message.answer(msg_to_user, reply_markup=main_menu)
-    db.set_appointment_data(message.from_user.id, user_data)
-    db.delete_time(user_data['clinic'], user_data['date'], user_data['time'])
 
 
 async def cancel_appointment(message: types.Message):
-    user_data = db.get_appointment_data(message.from_user.id)
+    user_data = await pg.get_appointment_data(message.from_user.id)
     subject = '🚫 Отмена записи на прием через Telegram-Bot'
     msg_to_email = f"""Пользователь {user_data['name']} отменил запись на прием в клинику {user_data['clinic']}
 Дата: {user_data['date']}
@@ -146,11 +140,9 @@ async def cancel_appointment(message: types.Message):
     if await appointment_sender(subject, msg_to_email):
         msg_to_user = f'Уважаемый(-ая) {user_data["name"]}, Ваша запись успешно отменена.'
     else:
-        msg_to_user = 'Что-то пошло не так. Попробуйте записаться на прием еще раз, введя команду /appointment.'
+        msg_to_user = 'Что-то пошло не так. Попробуйте еще раз'
     await message.answer(msg_to_user, reply_markup=main_menu)
-    db.add_datetime(user_data['clinic'], user_data['date'], user_data['time'])
-    db.delete_appointment(message.from_user.id)
-
+    await pg.delete_appointment(message.from_user.id)
 
 
 def register_handlers_appointment(dp: Dispatcher):
