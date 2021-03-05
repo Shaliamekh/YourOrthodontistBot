@@ -3,7 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.dispatcher.filters import Text
 
-from app.utils.db import get_clinics
+from app.db import pg
 
 
 class ChoosingClinic(StatesGroup):
@@ -15,7 +15,7 @@ cmd_line = '\n\nДля возврата к главному меню введи�
 
 async def all_clinics_info(message: types.Message, state: FSMContext):
     await state.finish()
-    clinics = get_clinics()
+    clinics = await pg.get_all_clinics()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     for clinic in clinics:
         keyboard.add(clinic)
@@ -25,12 +25,13 @@ async def all_clinics_info(message: types.Message, state: FSMContext):
 
 
 async def clinic_chosen(message: types.Message):
-    clinics = get_clinics()
-    if message.text not in clinics.keys():
+    clinics = await pg.get_all_clinics()
+    if message.text not in clinics:
         await message.answer("Пожалуйста, выберите клинику, используя клавиатуру ниже ⬇" + cmd_line)
         return
     await message.answer(message.text + '\n<i>Тут может быть любая информация о клиниках</i>')
-    await message.answer_location(clinics[message.text]['location'][0], clinics[message.text]['location'][1])
+    location = await pg.get_location_by_clinic(message.text)
+    await message.answer_location(location[0], location[1])
     await message.answer(cmd_line)
 
 

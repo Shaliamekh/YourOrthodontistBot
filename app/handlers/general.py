@@ -3,14 +3,12 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from os import path
 from app.utils.closest_clinic import closest_clinic
-from app.utils.db import get_clinics, visitors_list
 from app.markups import main_menu
 
 
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer('Используйте меню внизу ⬇', reply_markup=main_menu)
-    visitors_list(message.from_user.first_name, message.from_user.last_name, message.from_user.id)
 
 
 async def cmd_menu(message: types.Message, state: FSMContext):
@@ -21,7 +19,7 @@ async def cmd_menu(message: types.Message, state: FSMContext):
 async def getting_location(message: types.Message):
     user_location = str(message.location.latitude) + ',' + str(message.location.longitude)
     print(user_location)
-    clinic, time = await closest_clinic(user_location, get_clinics())
+    clinic, time = await closest_clinic(user_location)
     r = f'📍 Карты нам подсказывают, что сейчас вы находитесь всего в {time} минутах езды на автомобиле ' \
         f'от клиники {clinic}.\n\nНайти информацию об этой и других клиниках можно выбрав "Все клиники 🏥" в меню ⬇'
     print(user_location)

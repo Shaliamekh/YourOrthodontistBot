@@ -42,7 +42,7 @@ async def make_appointment(message: types.Message, state: FSMContext):
 
 async def clinic_chosen(message: types.Message, state: FSMContext):
     clinics = await pg.get_clinics_with_appointments_available()
-    if message.text not in clinics.keys():
+    if message.text not in clinics:
         await message.answer("Пожалуйста, выберите клинику, используя клавиатуру ниже ⬇" + cmd_line)
         return
     await state.update_data(clinic=message.text)
@@ -71,7 +71,8 @@ async def date_chosen(message: types.Message, state: FSMContext):
 
 async def time_chosen(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    timetable = await pg.get_time_available_by_clinic_date(user_data['clinic'], message.text)
+    timetable = await pg.get_time_available_by_clinic_date(user_data['clinic'], user_data['date'])
+    print(timetable)
     if message.text not in timetable:
         await message.answer("Пожалуйста, выберите время, используя клавиатуру ниже ⬇" + cmd_line)
         return
@@ -81,7 +82,6 @@ async def time_chosen(message: types.Message, state: FSMContext):
 
 
 async def name_shared(message: types.Message, state: FSMContext):
-    # TODO: проверка имени на None
     await state.update_data(name=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard.add(types.KeyboardButton(text="Отправить номер телефона 📱", request_contact=True))
@@ -104,7 +104,6 @@ async def phone_shared(message: types.Message, state: FSMContext):
 
 
 async def problem_described(message: types.Message, state: FSMContext):
-    # TODO: проверка проблемы на None
     user_data = await state.get_data()
     await state.finish()
     await pg.make_appointment(user_data['date'], user_data['time'], message.from_user.id, user_data['name'],
@@ -135,7 +134,7 @@ async def cancel_appointment(message: types.Message):
 Дата: {user_data['date']}
 Время: {user_data['time']}
 Номер телефона: {user_data['phone_number']}
-Описание проблемы: {user_data['problem']}
+Описание проблемы: {user_data['problem_description']}
     """
     if await appointment_sender(subject, msg_to_email):
         msg_to_user = f'Уважаемый(-ая) {user_data["name"]}, Ваша запись успешно отменена.'

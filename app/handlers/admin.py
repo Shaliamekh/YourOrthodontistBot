@@ -33,13 +33,13 @@ class AddClinic(StatesGroup):
 async def add_clinic(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer('Введите название новой клиники и ее адрес в скобках. Пример "ДЕНТиК (ул. Тургенева, 23)"'
-                         + both_cmd)
+                         + both_cmd, reply_markup=types.ReplyKeyboardRemove())
     await AddClinic.waiting_for_name.set()
 
 
 async def name_add_clinic(message: types.Message, state: FSMContext):
     await state.update_data(clinic=message.text)
-    await message.answer('Отправьте локацию новой клиники' + both_cmd)
+    await message.answer('Отправьте локацию новой клиники' + both_cmd,  reply_markup=types.ReplyKeyboardRemove())
     await AddClinic.waiting_for_location.set()
 
 
@@ -117,32 +117,30 @@ async def name_add_datetime(message: types.Message, state: FSMContext):
     await state.update_data(clinic=message.text)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
     dates = await pg.get_dates_available_by_clinic(message.text)
-    if not dates:
-        await message.answer('Что-то не так с базой данных' + menu_cmd, reply_markup=admin_menu)
-        return
-    for date in dates:
-        keyboard.add(date)
-    await message.answer('Выберите дату в меню ⬇ или введи новую дату в формате ДД/ММ/ГГГГ' + both_cmd,
-                         reply_markup=keyboard)
+    if dates:
+        for date in dates:
+            keyboard.add(date)
+        await message.answer('Выберите дату в меню ⬇ или введи новую дату в формате ДД/ММ/ГГГГ' + both_cmd,
+                             reply_markup=keyboard)
+    else:
+        await message.answer('Введи новую дату в формате ДД/ММ/ГГГГ' + both_cmd,
+                             reply_markup=types.ReplyKeyboardRemove())
     await AddDateTime.waiting_for_date.set()
 
 
 async def date_add_datetime(message: types.Message, state: FSMContext):
-    if not re.match(r'^[\d]{2}\/[\d]{2}\/[\d]{4}$', message.text):
+    if not re.match(r'^[\d]{2}/[\d]{2}/[\d]{4}$', message.text):
         await message.answer('Скорее всего, Вы ввели дату в неправильном формате. Попробуйте еще раз: ДД/ММ/ГГГГ')
         return
     await state.update_data(date=message.text)
-    await message.answer(f'Введите время записи для даты {message.text} в формате ЧЧ.ММ' + both_cmd,
+    await message.answer(f'Введите время записи для даты {message.text} в формате ЧЧ:ММ' + both_cmd,
                          reply_markup=types.ReplyKeyboardRemove())
     await AddDateTime.waiting_for_time.set()
 
 
-# TODO: проверить введение одинаковой даты и времени для разных клиник
-
-
 async def time_add_datetime(message: types.Message, state: FSMContext):
     if not re.match(r'^[\d]{2}:[\d]{2}$', message.text):
-        await message.answer('Скорее всего, Вы ввели время в неправильном формате. Попробуйте еще раз: ЧЧ.ММ')
+        await message.answer('Скорее всего, Вы ввели время в неправильном формате. Попробуйте еще раз: ЧЧ:ММ')
         return
     user_data = await state.get_data()
     result = await pg.add_appointment_available(user_data['clinic'], user_data['date'], message.text)
@@ -162,7 +160,7 @@ class DeleteDate(StatesGroup):
 async def delete_date(message: types.Message, state: FSMContext):
     await state.finish()
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    clinics = await pg.get_all_clinics()
+    clinics = await pg.get_clinics_with_appointments_available()
     if not clinics:
         await message.answer('Что-то не так с базой данных' + menu_cmd, reply_markup=admin_menu)
         return
@@ -196,11 +194,11 @@ async def name_delete_date(message: types.Message, state: FSMContext):
 
 async def date_delete_date(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    clinics = await pg.get_all_clinics()
-    if not clinics:
+    dates = await pg.get_dates_available_by_clinic(user_data['clinic'])
+    if not dates:
         await message.answer('Что-то не так с базой данных' + menu_cmd, reply_markup=admin_menu)
         return
-    if message.text not in clinics:
+    if message.text not in dates:
         await message.answer("Выберите дату, используя клавиатуру ниже ⬇" + both_cmd)
         return
     result = await pg.delete_appointments_available_by_date(user_data['clinic'], message.text)
@@ -255,7 +253,7 @@ async def name_delete_time(message: types.Message, state: FSMContext):
 
 async def date_delete_time(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    dates = await pg.get_dates_available_by_clinic(message.text)
+    dates = await pg.get_dates_available_by_clinic(user_data['clinic'])
     if not dates:
         await message.answer('Что-то не так с базой данных' + menu_cmd, reply_markup=admin_menu)
         return
@@ -277,7 +275,7 @@ async def date_delete_time(message: types.Message, state: FSMContext):
 
 async def time_delete_time(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
-    timetable = await pg.get_time_available_by_clinic_date(user_data['clinic'], message.text)
+    timetable = await pg.get_time_available_by_clinic_date(user_data['clinic'], user_data['date'])
     if not timetable:
         await message.answer('Что-то не так с базой данных' + menu_cmd, reply_markup=admin_menu)
         return
